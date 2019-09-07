@@ -44,13 +44,41 @@ void draw_clock_divider(struct Launchpad *lp) {
     }
 }
 
+void draw_notepads(struct Launchpad *lp) {
+    struct Track *track = &lp->tracks[lp->active_track];
+    struct Step *step = &track->steps[track->current_step];
+    if (lp->display_step_info != -1) {
+        step = &track->steps[lp->display_step_info];
+    }
+
+    if (track->is_drums) {
+        for (u8 i = 0; i < 16; i++) {
+            u8 pad_index = (i / 4 + 1) * 10 + i % 4 + 1;
+
+            if (step->velocity > 0 && step->note == DRUM_MIDI_NOTE[i]) {
+                u16 velocity = step->velocity;
+                draw_pad(pad_index, fade(COLOR_RED, (velocity * 100) / 127));
+            } else if (lp->display_step_info == -1 && lp->last_note.velocity > 0 && lp->last_note.note == DRUM_MIDI_NOTE[i]) {
+                u16 velocity = lp->last_note.velocity;
+                draw_pad(pad_index, fade(COLOR_YELLOW, (velocity * 100) / 127));
+            } else {
+                draw_pad(pad_index, track->color);
+            }
+        }
+    } else {
+
+    }
+}
+
 void draw_steps(struct Launchpad *lp) {
     struct Track *track = &lp->tracks[lp->active_track];
     for (u8 i = 0; i < 32; i++) {
         struct Step *step = &track->steps[i];
         u8 pad_index = (8 - (i / 8)) * 10 + (i % 8 + 1);
 
-        if (track->current_step == i) {
+        if (lp->display_step_info >= 0 && lp->display_step_info_request_ms[i] > 0) {
+            draw_pad(pad_index, COLOR_GREEN);
+        } else if (track->current_step == i) {
             if (!track->is_muted) {
                 draw_pad(pad_index, COLOR_RED);
             } else {
@@ -58,24 +86,13 @@ void draw_steps(struct Launchpad *lp) {
             }
         } else {
             if (step->velocity > 0) {
-                draw_pad(pad_index, fade(track->color, step->velocity));
+                u16 velocity = step->velocity;
+                draw_pad(pad_index, fade(track->color, (velocity * 100) / 127));
             } else {
                 draw_pad(pad_index, NO_COLOR);
             }
         }
-
     }
-}
-
-void draw_drumpads(struct Launchpad *lp) {
-    struct Track *track = &lp->tracks[lp->active_track];
-    for (u8 i = 0; i < 16; i++) {
-
-    }
-}
-
-void draw_melodypads(struct Launchpad *lp) {
-
 }
 
 void draw_length_selector(struct Launchpad *lp) {
@@ -92,10 +109,31 @@ void draw_length_selector(struct Launchpad *lp) {
 }
 
 void draw_velocity(struct Launchpad *lp) {
+    struct Color color = {.r = 63, .g = 63, .b = 63};
+    u8 velocity = lp->last_note.velocity;
+    if (lp->display_step_info != -1) {
+        velocity = lp->tracks[lp->active_track].steps[lp->display_step_info].velocity;
+    }
+    bool current_highlighted = velocity == 0;
 
+    for (u8 i = 0; i < 12; i++) {
+        u16 target_velocity = MAX(1, i * 10.58);
+        u8 pad_index = (i / 4 + 1) * 10 + i % 4 + 5;
+
+        if (!current_highlighted && (velocity <= target_velocity || i == 11)) {
+            if (lp->display_step_info != -1) {
+                draw_pad(pad_index, COLOR_RED);
+            } else {
+                draw_pad(pad_index, COLOR_YELLOW);
+            }
+            current_highlighted = true;
+        } else {
+            draw_pad(pad_index, fade(color, (target_velocity * 100) / 127));
+        }
+    }
 }
 
-void draw_active_track(struct Launchpad *lp) {
+void draw_track_selector(struct Launchpad *lp) {
     for (u8 i = 0; i < 8; i++) {
         struct Track *track = &lp->tracks[i];
         if (i == lp->active_track) {
@@ -104,17 +142,20 @@ void draw_active_track(struct Launchpad *lp) {
             draw_pad(1 + i, NO_COLOR);
         }
     }
+}
 
+void draw_active_step(struct Launchpad *lp) {
+    draw_steps(lp);
+    draw_notepads(lp);
+}
+
+void draw_active_track(struct Launchpad *lp) {
+    draw_track_selector(lp);
     draw_clock_divider(lp);
     draw_steps(lp);
     draw_length_selector(lp);
     draw_velocity(lp);
-
-    if (lp->tracks[lp->active_track].is_drums) {
-        draw_drumpads(lp);
-    } else {
-        draw_melodypads(lp);
-    }
+    draw_notepads(lp);
 }
 
 void draw_all(struct Launchpad *lp) {

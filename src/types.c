@@ -3,6 +3,9 @@
 
 #include <stdbool.h>
 
+#define MAX(a, b) ((a) > (b) ? a : b)
+#define MIN(a,b) ((a) < (b) ? a : b)
+
 struct Color {
     u8 r;
     u8 g;
@@ -27,7 +30,12 @@ struct Track {
 };
 
 struct Launchpad {
+    u32 time;
+
     u8 active_track;
+    s8 display_step_info;
+    u32 display_step_info_request_ms[32];
+
     struct Step last_note;
     struct Track tracks[8];
 };
@@ -65,5 +73,12 @@ struct Track melody_track(u8 r, u8 g, u8 b) {
     struct Track t = create_track(r, g, b);
     return t;
 }
+
+const u8 DRUM_MIDI_NOTE[16] = {
+        48, 49, 50, 51,
+        44, 45, 46, 47,
+        40, 41, 42, 43,
+        36, 37, 38, 39
+};
 
 #endif

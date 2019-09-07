@@ -114,5 +114,7 @@ int main(int argc, char *argv[]) {
         sim_app_timer_event();
     }
 
+    sim_app_surface_event(TYPEPAD, 73, 0);
+
     return 0;
 }
