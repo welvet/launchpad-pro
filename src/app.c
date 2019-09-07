@@ -19,8 +19,9 @@ void app_init(const u16 *adc_raw) {
 }
 
 void app_surface_event(u8 type, u8 index, u8 value) {
-    if (value > 0) {
+    if (type == TYPEPAD && value > 0) {
         handle_track_mute(&lp, index);
+        handle_active_track(&lp, index);
     }
 }
 
@@ -40,6 +41,11 @@ void app_cable_event(u8 type, u8 value) {
 
 }
 
-void app_timer_event() {
+u16 ms = 0;
+u16 clock = 0;
 
+void app_timer_event() {
+    if (ms++ % 20 == 0) {
+        handle_clock(&lp, clock++);
+    }
 }
