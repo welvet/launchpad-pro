@@ -28,10 +28,13 @@ struct Track {
 
 struct Launchpad {
     u8 active_track;
+    struct Step last_note;
     struct Track tracks[8];
 };
 
 const struct Color COLOR_RED = {.r = 40, .g = 0, .b = 0};
+const struct Color COLOR_YELLOW = {.r = 40, .g = 40, .b = 0};
+const struct Color COLOR_GREEN = {.r = 0, .g = 40, .b = 0};
 const struct Color NO_COLOR = {.r = 0, .g = 0, .b = 0};
 
 struct Track create_track(u8 r, u8 g, u8 b) {

@@ -39,35 +39,29 @@
 // it to the hardware, which also means you can debug it interactively.
 // ____________________________________________________________________________
 
-void hal_plot_led(u8 type, u8 index, u8 red, u8 green, u8 blue)
-{
+void hal_plot_led(u8 type, u8 index, u8 red, u8 green, u8 blue) {
     // wire this up to MIDI out...?
 }
 
-void hal_read_led(u8 type, u8 index, u8 *red, u8 *green, u8 *blue)
-{
+void hal_read_led(u8 type, u8 index, u8 *red, u8 *green, u8 *blue) {
 }
 
-void hal_send_midi(u8 port, u8 status, u8 d1, u8 d2)
-{
-	// send this up a virtual MIDI port?
-	printf("...hal_send_midi(%d, 0x%2.2x, 0x%2.2x, 0x%2.2x);\n", port, status, d1, d2);
+void hal_send_midi(u8 port, u8 status, u8 d1, u8 d2) {
+    // send this up a virtual MIDI port?
+    printf("...hal_send_midi(%d, 0x%2.2x, 0x%2.2x, 0x%2.2x);\n", port, status, d1, d2);
 }
 
-void hal_send_sysex(u8 port, const u8* data, u16 length)
-{
-	// as above, or just dump to console?
-	printf("...hal_send_midi(%d, (data), %d);\n", port, length);
+void hal_send_sysex(u8 port, const u8 *data, u16 length) {
+    // as above, or just dump to console?
+    printf("...hal_send_midi(%d, (data), %d);\n", port, length);
 }
 
-void hal_read_flash(u32 offset, u8 *data, u32 length)
-{
-	printf("...hal_read_flash(%lu, (data), %lu);\n", offset, length);
+void hal_read_flash(u32 offset, u8 *data, u32 length) {
+    printf("...hal_read_flash(%lu, (data), %lu);\n", offset, length);
 }
 
-void hal_write_flash(u32 offset,const u8 *data, u32 length)
-{
-	printf("...hal_write_flash(%lu, (data), %lu);\n", offset, length);
+void hal_write_flash(u32 offset, const u8 *data, u32 length) {
+    printf("...hal_write_flash(%lu, (data), %lu);\n", offset, length);
 }
 
 // ____________________________________________________________________________
@@ -78,52 +72,47 @@ void hal_write_flash(u32 offset,const u8 *data, u32 length)
 
 static u16 raw_ADC[64];
 
-static void sim_app_init()
-{
-	printf("calling app_init()...\n");
-	app_init(raw_ADC);
+static void sim_app_init() {
+    printf("calling app_init()...\n");
+    app_init(raw_ADC);
 }
 
-static void sim_app_surface_event(u8 type, u8 index, u8 value)
-{
-	printf("calling sim_app_surface_event(%d, %d, %d)...\n", type, index, value);
-	app_surface_event(type, index, value);
+static void sim_app_surface_event(u8 type, u8 index, u8 value) {
+    printf("calling sim_app_surface_event(%d, %d, %d)...\n", type, index, value);
+    app_surface_event(type, index, value);
 }
 
-static void sim_app_midi_event(u8 port, u8 status, u8 d1, u8 d2)
-{
-	printf("calling app_midi_event(%d, 0x%2.2x, 0x%2.2x, 0x%2.2x)...\n", port, status, d1, d2);
-	app_midi_event(port, status, d1, d2);
+static void sim_app_midi_event(u8 port, u8 status, u8 d1, u8 d2) {
+    printf("calling app_midi_event(%d, 0x%2.2x, 0x%2.2x, 0x%2.2x)...\n", port, status, d1, d2);
+    app_midi_event(port, status, d1, d2);
 }
 
-static void sim_app_timer_event()
-{
-	printf("calling app_timer_event()...\n");
-	app_timer_event();
+static void sim_app_timer_event() {
+    printf("calling app_timer_event()...\n");
+    app_timer_event();
 }
 
 // ____________________________________________________________________________
 
-int main(int argc, char * argv[])
-{
-	// let's just call a few things to give the app a very brief workout.
-	sim_app_init();
-	
-	// surface
-	sim_app_surface_event(TYPEPAD, 35, 127);
-	sim_app_surface_event(TYPESETUP, 0, 127);
-	sim_app_surface_event(TYPEPAD, 35, 0);
-	
-	// MIDI
-	sim_app_midi_event(USBSTANDALONE, NOTEON, 60, 127);
-	sim_app_midi_event(USBSTANDALONE, NOTEON, 60, 0);
-	
-	// timer
-	const int timerTicks = 21;
-	printf("sending %d timer events via app_timer_event()...\n", timerTicks);
-	for (int i=0; i < timerTicks; ++i)
-	{
-		sim_app_timer_event();
-	}
-	return 0;
+int main(int argc, char *argv[]) {
+    // let's just call a few things to give the app a very brief workout.
+    sim_app_init();
+
+    // surface
+    sim_app_surface_event(TYPEPAD, 35, 127);
+    sim_app_surface_event(TYPESETUP, 0, 127);
+    sim_app_surface_event(TYPEPAD, 35, 0);
+
+    // MIDI
+    sim_app_midi_event(USBSTANDALONE, NOTEON, 60, 127);
+    sim_app_midi_event(USBSTANDALONE, NOTEON, 60, 0);
+
+    // timer
+    const int timerTicks = 21;
+    printf("sending %d timer events via app_timer_event()...\n", timerTicks);
+    for (int i = 0; i < timerTicks; ++i) {
+        sim_app_timer_event();
+    }
+
+    return 0;
 }

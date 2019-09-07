@@ -6,11 +6,15 @@
 struct Launchpad lp;
 
 void app_init(const u16 *adc_raw) {
-    lp.tracks[0] = drum_track(245, 12, 34);
-    lp.tracks[1] = drum_track(245, 12, 34);
-    lp.tracks[2] = drum_track(245, 12, 34);
-    lp.tracks[3] = drum_track(245, 12, 34);
-    lp.tracks[4] = drum_track(245, 12, 34);
+    lp.active_track = 0;
+    lp.last_note.note = 0;
+    lp.last_note.velocity = 0;
+
+    lp.tracks[0] = drum_track(24, 12, 34);
+    lp.tracks[1] = drum_track(24, 12, 34);
+    lp.tracks[2] = drum_track(24, 12, 34);
+    lp.tracks[3] = drum_track(24, 12, 34);
+    lp.tracks[4] = drum_track(24, 12, 34);
     lp.tracks[5] = melody_track(12, 44, 4);
     lp.tracks[6] = melody_track(12, 44, 4);
     lp.tracks[7] = melody_track(12, 44, 4);
@@ -22,6 +26,8 @@ void app_surface_event(u8 type, u8 index, u8 value) {
     if (type == TYPEPAD && value > 0) {
         handle_track_mute(&lp, index);
         handle_active_track(&lp, index);
+        handle_clock_divider(&lp, index);
+        handle_length(&lp, index);
     }
 }
 
