@@ -12,7 +12,7 @@ bool is_in_col(u8 pad, u8 col) {
     return pad % 10 == col;
 }
 
-bool is_drum_note(u8 pad) {
+bool is_notepad(u8 pad) {
     u8 pad_row = pad / 10;
     u8 pad_col = pad % 10;
     return pad_row > 0 && pad_row <= 4 && pad_col > 0 && pad_col <= 4;
@@ -106,26 +106,40 @@ void handle_velocity(struct Launchpad *lp, u8 pad_index) {
 }
 
 void handle_note(struct Launchpad *lp, u8 pad_index, u8 value) {
-    if (lp->tracks[lp->active_track].is_drums && is_drum_note(pad_index)) {
-        u8 note = DRUM_MIDI_NOTE[(pad_index / 10 - 1) * 4 + (pad_index % 10 - 1)];
+    if (is_notepad(pad_index)) {
+        struct Track *track = &lp->tracks[lp->active_track];
 
-        lp->last_note.note = note;
-        lp->last_note.velocity = value;
+        u8 note = 0;
+        if (lp->tracks[lp->active_track].is_drums) {
+             note = DRUM_MIDI_NOTE[(pad_index / 10 - 1) * 4 + (pad_index % 10 - 1)];
+        } else {
+            if (pad_index / 10 == 1) {
+                if (pad_index == 13 && track->octave > 0) {
+                    track->octave--;
+                } else if (pad_index == 14 && track->octave < 6) {
+                    track->octave++;
+                }
+            } else {
+                note = track->octave * MELODY_MIDI_NOTE[(pad_index / 10 - 2) * 4 + (pad_index % 10 - 1)];
+            }
+        }
 
-        if (lp->display_step_info >= 0) {
-            struct Track *track = &lp->tracks[lp->active_track];
-            for (u8 i = 0; i < 32; i++) {
-                if (lp->display_step_info_request_ms[i] > 0) {
-                    track->steps[i].note = note;
-                    track->steps[i].velocity = value;
+        if (note > 0) {
+            lp->last_note.note = note;
+            lp->last_note.velocity = value;
+
+            if (lp->display_step_info >= 0) {
+                for (u8 i = 0; i < 32; i++) {
+                    if (lp->display_step_info_request_ms[i] > 0) {
+                        track->steps[i].note = note;
+                        track->steps[i].velocity = value;
+                    }
                 }
             }
         }
 
         draw_notepads(lp);
         draw_velocity(lp);
-    } else {
-
     }
 }
 

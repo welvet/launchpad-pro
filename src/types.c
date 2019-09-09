@@ -26,6 +26,8 @@ struct Track {
     u8 clock_divider;
     u8 current_step;
     u8 length;
+    u8 octave;
+
     struct Step steps[32];
 };
 
@@ -52,7 +54,8 @@ struct Track create_track(u8 r, u8 g, u8 b) {
             .color = {.r = r, .g = g, .b = b},
             .clock_divider = 3,
             .current_step = 0,
-            .length = 2
+            .length = 2,
+            .octave = 3
     };
 
     for (u8 i = 0; i < 32; i++) {
@@ -75,10 +78,22 @@ struct Track melody_track(u8 r, u8 g, u8 b) {
 }
 
 const u8 DRUM_MIDI_NOTE[16] = {
-        48, 49, 50, 51,
-        44, 45, 46, 47,
+        36, 37, 38, 39,
         40, 41, 42, 43,
-        36, 37, 38, 39
+        44, 45, 46, 47,
+        48, 49, 50, 51
+};
+
+const u8 MELODY_MIDI_NOTE[12] = {
+        24, 25, 26, 27,
+        28, 29, 30, 31,
+        32, 33, 34, 35
+};
+
+const bool MELODY_SEMITONE[12] = {
+        false, true, false, true,
+        false, false, true, false,
+        true, false, true, false,
 };
 
 #endif

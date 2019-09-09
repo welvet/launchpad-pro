@@ -66,7 +66,31 @@ void draw_notepads(struct Launchpad *lp) {
             }
         }
     } else {
+        for (u8 i = 0; i < 12; i++) {
+            u8 pad_index = (i / 4 + 2) * 10 + i % 4 + 1;
+            u8 note = track->octave * MELODY_MIDI_NOTE[i];
 
+            if (step->velocity > 0 && step->note == note) {
+                u16 velocity = step->velocity;
+                draw_pad(pad_index, fade(COLOR_RED, (velocity * 100) / 127));
+            } else if (lp->display_step_info == -1 && lp->last_note.velocity > 0 && lp->last_note.note == note) {
+                u16 velocity = lp->last_note.velocity;
+                draw_pad(pad_index, fade(COLOR_YELLOW, (velocity * 100) / 127));
+            } else {
+                if (MELODY_SEMITONE[i]) {
+                    draw_pad(pad_index, fade(track->color, 30));
+                } else {
+                    draw_pad(pad_index, track->color);
+                }
+            }
+        }
+
+        draw_pad(11, NO_COLOR);
+        draw_pad(12, NO_COLOR);
+
+        struct Color octave_switch_color = {.r = 12, .g = 4, .b = 43};
+        draw_pad(13, fade(octave_switch_color, 30));
+        draw_pad(14, octave_switch_color);
     }
 }
 
