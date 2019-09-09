@@ -143,10 +143,14 @@ void handle_clock(struct Launchpad *lp) {
                 play_note_step(lp, i, step->note, step->velocity);
             }
 
+            track->current_step_clock = lp->clock;
+
             if (lp->active_track == i) {
                 draw_active_step(lp);
             }
         }
+
+        track->next_step_clock = track->current_step_clock + clock_divider;
     }
 }
 
@@ -204,7 +208,21 @@ void handle_note(struct Launchpad *lp, u8 pad_index, u8 value) {
                     }
                 }
             } else if (lp->record_mode) {
-                //record
+                if (track->next_step_clock > track->current_step_clock) {
+                    u32 cur_clock = lp->raw_clock - 3 * track->current_step_clock;
+                    u32 midstep = 3 * (track->next_step_clock - track->current_step_clock) / 2;
+
+                    if (cur_clock <= midstep) {
+                        track->steps[track->active_pattern][track->current_step].note = note;
+                        track->steps[track->active_pattern][track->current_step].velocity = value;
+                    } else {
+                        u8 track_len = 1 << (track->length[track->active_pattern] + 2);
+                        u8 next_step = (track->current_step + 1) % track_len;
+                        track->steps[track->active_pattern][next_step].note = note;
+                        track->steps[track->active_pattern][next_step].velocity = value;
+                    }
+                }
+
             }
         }
 
@@ -296,7 +314,9 @@ void handle_start(struct Launchpad *lp) {
         stop_note_step(lp, i);
         lp->tracks[i].current_step = -1;
     }
+
     lp->clock = -1;
+    lp->raw_clock = -1;
 }
 
 void handle_stop(struct Launchpad *lp) {
@@ -346,6 +366,8 @@ void handle_control(struct Launchpad *lp, u8 pad_index) {
             draw_active_track(lp);
         } else if (id == 2) {
             lp->preview_off_mode = true;
+        } else if (id == 1) {
+            lp->record_mode = track;
         }
     }
 }
@@ -357,6 +379,8 @@ void handle_control_unpress(struct Launchpad *lp, u8 pad_index) {
             lp->clone_pattern_mode = false;
         } else if (id == 2) {
             lp->preview_off_mode = false;
+        } else if (id == 1) {
+            lp->record_mode = false;
         }
     }
 }

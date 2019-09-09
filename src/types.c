@@ -23,9 +23,11 @@ struct Track {
 
     struct Color color;
 
-
     u8 current_step;
     u8 octave;
+
+    u32 current_step_clock;
+    u32 next_step_clock;
 
     u8 active_pattern;
     u8 clock_divider[4];

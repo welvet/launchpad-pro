@@ -191,7 +191,7 @@ void draw_control(struct Launchpad *lp) {
         draw_pad(30, NO_COLOR);  //dup
     }
     draw_pad(20, COLOR_CYAN);   //no preview
-    //draw_pad(10, COLOR_RED);    //rec
+    draw_pad(10, COLOR_RED);    //rec
 }
 
 void draw_active_step(struct Launchpad *lp) {
