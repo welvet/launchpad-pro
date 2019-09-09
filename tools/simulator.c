@@ -116,5 +116,8 @@ int main(int argc, char *argv[]) {
 
     sim_app_surface_event(TYPEPAD, 73, 0);
 
+    sim_app_midi_event(USBSTANDALONE, MIDISTART, 60, 127);
+    sim_app_midi_event(USBSTANDALONE, MIDITIMINGCLOCK, 60, 0);
+
     return 0;
 }

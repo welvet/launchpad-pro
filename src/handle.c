@@ -2,6 +2,7 @@
 #define LP_HANDLE
 
 #include "draw.c"
+#include "app_defs.h"
 #include <stdbool.h>
 
 bool is_in_row(u8 pad, u8 row) {
@@ -28,6 +29,45 @@ bool is_sequencer(u8 pad) {
     u8 pad_row = pad / 10;
     u8 pad_col = pad % 10;
     return pad_row > 4 && pad_row <= 8 && pad_col >= 1 && pad_col <= 8;
+}
+
+void play_note_pad(struct Launchpad *lp, u8 pad_index, u8 note, u8 velocity) {
+    if (!lp->preview_off_mode) {
+        hal_send_midi(USBSTANDALONE, NOTEON | lp->active_track, note, velocity);
+
+        u8 pad_aindex = (pad_index / 10 - 1) * 4 + (pad_index % 10 - 1);
+        struct PlayingPad *pad = &lp->playing_pad[pad_aindex];
+        pad->is_playing = true;
+        pad->note = note;
+        pad->track = lp->active_track;
+    }
+}
+
+void stop_note_pad(struct Launchpad *lp, u8 pad_aindex) {
+    struct PlayingPad *pad = &lp->playing_pad[pad_aindex];
+    if (pad->is_playing) {
+        hal_send_midi(USBSTANDALONE, NOTEOFF | pad->track, pad->note, 0);
+
+        pad->is_playing = false;
+    }
+}
+
+void play_note_step(struct Launchpad *lp, u8 track, u8 note, u8 velocity) {
+    if (!lp->tracks[track].is_muted) {
+        hal_send_midi(USBSTANDALONE, NOTEON | track, note, velocity);
+
+        lp->playing_step[track].is_playing = true;
+        lp->playing_step[track].note = note;
+    }
+}
+
+void stop_note_step(struct Launchpad *lp, u8 track) {
+    struct PlayingStep *step = &lp->playing_step[track];
+    if (step->is_playing) {
+        hal_send_midi(USBSTANDALONE, NOTEOFF | track, step->note, 0);
+
+        step->is_playing = false;
+    }
 }
 
 void handle_track_mute(struct Launchpad *lp, u8 pad_index) {
@@ -69,12 +109,19 @@ void handle_length(struct Launchpad *lp, u8 pad_index) {
     }
 }
 
-void handle_clock(struct Launchpad *lp, u16 clock) {
+void handle_clock(struct Launchpad *lp) {
     for (u8 i = 0; i < 8; i++) {
         struct Track *track = &lp->tracks[i];
-        if (clock % (1 << track->clock_divider) == 0) {
-            if (++track->current_step >= (1 << (track->length + 2))) {
-                track->current_step = 0;
+        u8 clock_divider = CLOCK_DIVIDER[track->clock_divider];
+
+        if (lp->clock % clock_divider == 0) {
+            u8 track_len = 1 << (track->length + 2);
+            track->current_step = lp->clock / clock_divider % track_len;
+
+            stop_note_step(lp, i);
+            struct Step *step = &track->steps[track->current_step];
+            if (step->velocity > 0) {
+                play_note_step(lp, i, step->note, step->velocity);
             }
 
             if (lp->active_track == i) {
@@ -95,7 +142,7 @@ void handle_velocity(struct Launchpad *lp, u8 pad_index) {
                     track->steps[i].velocity = velocity_index * 10.58;
                 }
             }
-        } else if (lp->last_note.velocity > 0 ) {
+        } else if (lp->last_note.velocity > 0) {
             lp->last_note.velocity = MAX(1, velocity_index * 10.58);
         }
 
@@ -105,13 +152,14 @@ void handle_velocity(struct Launchpad *lp, u8 pad_index) {
 
 }
 
+
 void handle_note(struct Launchpad *lp, u8 pad_index, u8 value) {
     if (is_notepad(pad_index)) {
         struct Track *track = &lp->tracks[lp->active_track];
 
         u8 note = 0;
         if (lp->tracks[lp->active_track].is_drums) {
-             note = DRUM_MIDI_NOTE[(pad_index / 10 - 1) * 4 + (pad_index % 10 - 1)];
+            note = DRUM_MIDI_NOTE[(pad_index / 10 - 1) * 4 + (pad_index % 10 - 1)];
         } else {
             if (pad_index / 10 == 1) {
                 if (pad_index == 13 && track->octave > 0) {
@@ -120,11 +168,12 @@ void handle_note(struct Launchpad *lp, u8 pad_index, u8 value) {
                     track->octave++;
                 }
             } else {
-                note = track->octave * MELODY_MIDI_NOTE[(pad_index / 10 - 2) * 4 + (pad_index % 10 - 1)];
+                note = 12 * track->octave + MELODY_MIDI_NOTE[(pad_index / 10 - 2) * 4 + (pad_index % 10 - 1)];
             }
         }
 
         if (note > 0) {
+            play_note_pad(lp, pad_index, note, value);
             lp->last_note.note = note;
             lp->last_note.velocity = value;
 
@@ -135,6 +184,8 @@ void handle_note(struct Launchpad *lp, u8 pad_index, u8 value) {
                         track->steps[i].velocity = value;
                     }
                 }
+            } else if (lp->record_mode) {
+                //record
             }
         }
 
@@ -214,9 +265,26 @@ void handle_sequencer_unpress(struct Launchpad *lp, u8 pad_index) {
     }
 }
 
-
 void handle_note_unpress(struct Launchpad *lp, u8 pad_index) {
-
+    if (is_notepad(pad_index)) {
+        u8 pad_aindex = (pad_index / 10 - 1) * 4 + (pad_index % 10 - 1);
+        stop_note_pad(lp, pad_aindex);
+    }
 }
+
+void handle_start(struct Launchpad *lp) {
+    for (u8 i = 0; i < 8; i++) {
+        stop_note_step(lp, i);
+        lp->tracks[i].current_step = -1;
+    }
+    lp->clock = -1;
+}
+
+void handle_stop(struct Launchpad *lp) {
+    for (u8 i = 0; i < 16; i++) {
+        stop_note_step(lp, i);
+    }
+}
+
 
 #endif

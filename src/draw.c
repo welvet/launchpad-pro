@@ -37,7 +37,11 @@ void draw_clock_divider(struct Launchpad *lp) {
     for (u8 i = 0; i < 8; i++) {
         u8 pad_index = (8 - i) * 10 + 9;
         if (track->clock_divider == i) {
-            draw_pad(pad_index, COLOR_GREEN);
+            if (i == 3) {
+                draw_pad(pad_index, COLOR_RED);
+            } else {
+                draw_pad(pad_index, COLOR_GREEN);
+            }
         } else {
             draw_pad(pad_index, NO_COLOR);
         }
@@ -58,7 +62,8 @@ void draw_notepads(struct Launchpad *lp) {
             if (step->velocity > 0 && step->note == DRUM_MIDI_NOTE[i]) {
                 u16 velocity = step->velocity;
                 draw_pad(pad_index, fade(COLOR_RED, (velocity * 100) / 127));
-            } else if (lp->display_step_info == -1 && lp->last_note.velocity > 0 && lp->last_note.note == DRUM_MIDI_NOTE[i]) {
+            } else if (lp->display_step_info == -1 && lp->last_note.velocity > 0 &&
+                       lp->last_note.note == DRUM_MIDI_NOTE[i]) {
                 u16 velocity = lp->last_note.velocity;
                 draw_pad(pad_index, fade(COLOR_YELLOW, (velocity * 100) / 127));
             } else {
@@ -68,7 +73,7 @@ void draw_notepads(struct Launchpad *lp) {
     } else {
         for (u8 i = 0; i < 12; i++) {
             u8 pad_index = (i / 4 + 2) * 10 + i % 4 + 1;
-            u8 note = track->octave * MELODY_MIDI_NOTE[i];
+            u8 note = 12 * track->octave + MELODY_MIDI_NOTE[i];
 
             if (step->velocity > 0 && step->note == note) {
                 u16 velocity = step->velocity;

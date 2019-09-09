@@ -31,8 +31,24 @@ struct Track {
     struct Step steps[32];
 };
 
+struct PlayingPad {
+    bool is_playing;
+    u8 note;
+    u8 track;
+};
+
+struct PlayingStep {
+    bool is_playing;
+    u8 note;
+};
+
 struct Launchpad {
     u32 time;
+    u32 clock;
+    u32 raw_clock;
+
+    bool preview_off_mode;
+    bool record_mode;
 
     u8 active_track;
     s8 display_step_info;
@@ -40,6 +56,8 @@ struct Launchpad {
 
     struct Step last_note;
     struct Track tracks[8];
+    struct PlayingPad playing_pad[16];
+    struct PlayingStep playing_step[8];
 };
 
 const struct Color COLOR_RED = {.r = 40, .g = 0, .b = 0};
@@ -52,7 +70,7 @@ struct Track create_track(u8 r, u8 g, u8 b) {
             .is_drums = false,
             .is_muted = false,
             .color = {.r = r, .g = g, .b = b},
-            .clock_divider = 3,
+            .clock_divider = 1,
             .current_step = 0,
             .length = 2,
             .octave = 3
@@ -94,6 +112,10 @@ const bool MELODY_SEMITONE[12] = {
         false, true, false, true,
         false, false, true, false,
         true, false, true, false,
+};
+
+const u8 CLOCK_DIVIDER[8] = {
+        1, 2, 4, 6, 8, 16, 32, 64
 };
 
 #endif
