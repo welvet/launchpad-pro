@@ -23,12 +23,14 @@ struct Track {
 
     struct Color color;
 
-    u8 clock_divider;
+
     u8 current_step;
-    u8 length;
     u8 octave;
 
-    struct Step steps[32];
+    u8 active_pattern;
+    u8 clock_divider[4];
+    u8 length[4];
+    struct Step steps[4][32];
 };
 
 struct PlayingPad {
@@ -47,12 +49,18 @@ struct Launchpad {
     u32 clock;
     u32 raw_clock;
 
+    bool clone_pattern_mode;
+    bool clear_pattern_mode;
     bool preview_off_mode;
     bool record_mode;
 
     u8 active_track;
     s8 display_step_info;
     u32 display_step_info_request_ms[32];
+
+    u8 prev_active_track;
+    u8 active_track_buttons_pressed;
+    u32 restore_active_track_request_ms;
 
     struct Step last_note;
     struct Track tracks[8];
@@ -62,6 +70,7 @@ struct Launchpad {
 
 const struct Color COLOR_RED = {.r = 40, .g = 0, .b = 0};
 const struct Color COLOR_YELLOW = {.r = 40, .g = 40, .b = 0};
+const struct Color COLOR_CYAN = {.r = 0, .g = 40, .b = 40};
 const struct Color COLOR_GREEN = {.r = 0, .g = 40, .b = 0};
 const struct Color NO_COLOR = {.r = 0, .g = 0, .b = 0};
 
@@ -70,15 +79,20 @@ struct Track create_track(u8 r, u8 g, u8 b) {
             .is_drums = false,
             .is_muted = false,
             .color = {.r = r, .g = g, .b = b},
-            .clock_divider = 1,
             .current_step = 0,
-            .length = 2,
             .octave = 3
     };
 
+    for (u8 i = 0; i < 4; i++) {
+        t.clock_divider[i] = 1;
+        t.length[i] = 2;
+    }
+
     for (u8 i = 0; i < 32; i++) {
-        t.steps[i].note = 0;
-        t.steps[i].velocity = 0;
+        for (u8 j = 0; j < 4; j++) {
+            t.steps[j][i].note = 0;
+            t.steps[j][i].velocity = 0;
+        }
     }
 
     return t;

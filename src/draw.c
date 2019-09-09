@@ -36,7 +36,7 @@ void draw_clock_divider(struct Launchpad *lp) {
     struct Track *track = &lp->tracks[lp->active_track];
     for (u8 i = 0; i < 8; i++) {
         u8 pad_index = (8 - i) * 10 + 9;
-        if (track->clock_divider == i) {
+        if (track->clock_divider[track->active_pattern] == i) {
             if (i == 3) {
                 draw_pad(pad_index, COLOR_RED);
             } else {
@@ -50,9 +50,9 @@ void draw_clock_divider(struct Launchpad *lp) {
 
 void draw_notepads(struct Launchpad *lp) {
     struct Track *track = &lp->tracks[lp->active_track];
-    struct Step *step = &track->steps[track->current_step];
+    struct Step *step = &track->steps[track->active_pattern][track->current_step];
     if (lp->display_step_info != -1) {
-        step = &track->steps[lp->display_step_info];
+        step = &track->steps[track->active_pattern][lp->display_step_info];
     }
 
     if (track->is_drums) {
@@ -102,7 +102,7 @@ void draw_notepads(struct Launchpad *lp) {
 void draw_steps(struct Launchpad *lp) {
     struct Track *track = &lp->tracks[lp->active_track];
     for (u8 i = 0; i < 32; i++) {
-        struct Step *step = &track->steps[i];
+        struct Step *step = &track->steps[track->active_pattern][i];
         u8 pad_index = (8 - (i / 8)) * 10 + (i % 8 + 1);
 
         if (lp->display_step_info >= 0 && lp->display_step_info_request_ms[i] > 0) {
@@ -129,7 +129,7 @@ void draw_length_selector(struct Launchpad *lp) {
     struct Track *track = &lp->tracks[lp->active_track];
 
     for (u8 i = 0; i < 4; i++) {
-        if (i <= track->length) {
+        if (i <= track->length[track->active_pattern]) {
             draw_pad(45 + i, color);
         } else {
             draw_pad(45 + i, fade(color, 20));
@@ -141,7 +141,8 @@ void draw_velocity(struct Launchpad *lp) {
     struct Color color = {.r = 63, .g = 63, .b = 63};
     u8 velocity = lp->last_note.velocity;
     if (lp->display_step_info != -1) {
-        velocity = lp->tracks[lp->active_track].steps[lp->display_step_info].velocity;
+        struct Track *track = &lp->tracks[lp->active_track];
+        velocity = track->steps[track->active_pattern][lp->display_step_info].velocity;
     }
     bool current_highlighted = velocity == 0;
 
@@ -173,6 +174,26 @@ void draw_track_selector(struct Launchpad *lp) {
     }
 }
 
+void draw_control(struct Launchpad *lp) {
+    struct Track *track = &lp->tracks[lp->active_track];
+    for (u8 i = 0; i < 4; i++) {
+        if (track->active_pattern == i) {
+            draw_pad((8 - i) * 10, track->color);
+        } else {
+            draw_pad((8 - i) * 10, NO_COLOR);
+        }
+    }
+
+    draw_pad(40, COLOR_YELLOW); //clone
+    if (track->length[track->active_pattern] <= 2) {
+        draw_pad(30, COLOR_GREEN);  //dup
+    } else {
+        draw_pad(30, NO_COLOR);  //dup
+    }
+    draw_pad(20, COLOR_CYAN);   //no preview
+    //draw_pad(10, COLOR_RED);    //rec
+}
+
 void draw_active_step(struct Launchpad *lp) {
     draw_steps(lp);
     draw_notepads(lp);
@@ -183,6 +204,7 @@ void draw_active_track(struct Launchpad *lp) {
     draw_clock_divider(lp);
     draw_steps(lp);
     draw_length_selector(lp);
+    draw_control(lp);
     draw_velocity(lp);
     draw_notepads(lp);
 }

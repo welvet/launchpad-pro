@@ -36,9 +36,16 @@ void app_surface_event(u8 type, u8 index, u8 value) {
         handle_note(&lp, index, value);
         handle_velocity(&lp, index);
         handle_sequencer(&lp, index);
+        handle_control(&lp, index);
     } else if (type == TYPEPAD) {
+        handle_active_track_unpress(&lp, index);
         handle_note_unpress(&lp, index);
         handle_sequencer_unpress(&lp, index);
+        handle_control_unpress(&lp, index);
+    }
+
+    if (type == TYPESETUP) {
+        handle_setup(&lp, value > 0);
     }
 }
 
