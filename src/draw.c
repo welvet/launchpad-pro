@@ -190,7 +190,11 @@ void draw_control(struct Launchpad *lp) {
     } else {
         draw_pad(30, NO_COLOR);  //dup
     }
-    draw_pad(20, COLOR_CYAN);   //no preview
+    if (lp->ableton_control_pad_mode) {
+        draw_pad(20, COLOR_CYAN);
+    } else {
+        draw_pad(20, NO_COLOR);
+    }
     draw_pad(10, COLOR_RED);    //rec
 }
 

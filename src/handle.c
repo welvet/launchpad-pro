@@ -32,21 +32,21 @@ bool is_sequencer(u8 pad) {
 }
 
 void play_note_pad(struct Launchpad *lp, u8 pad_index, u8 note, u8 velocity) {
-    if (!lp->preview_off_mode) {
-        hal_send_midi(USBSTANDALONE, NOTEON | lp->active_track, note, velocity);
+    hal_send_midi(USBMIDI, NOTEON | lp->active_track, note, velocity);
+    hal_send_midi(DINMIDI, NOTEON | lp->active_track, note, velocity);
 
-        u8 pad_aindex = (pad_index / 10 - 1) * 4 + (pad_index % 10 - 1);
-        struct PlayingPad *pad = &lp->playing_pad[pad_aindex];
-        pad->is_playing = true;
-        pad->note = note;
-        pad->track = lp->active_track;
-    }
+    u8 pad_aindex = (pad_index / 10 - 1) * 4 + (pad_index % 10 - 1);
+    struct PlayingPad *pad = &lp->playing_pad[pad_aindex];
+    pad->is_playing = true;
+    pad->note = note;
+    pad->track = lp->active_track;
 }
 
 void stop_note_pad(struct Launchpad *lp, u8 pad_aindex) {
     struct PlayingPad *pad = &lp->playing_pad[pad_aindex];
     if (pad->is_playing) {
-        hal_send_midi(USBSTANDALONE, NOTEOFF | pad->track, pad->note, 0);
+        hal_send_midi(USBMIDI, NOTEOFF | pad->track, pad->note, 0);
+        hal_send_midi(DINMIDI, NOTEOFF | pad->track, pad->note, 0);
 
         pad->is_playing = false;
     }
@@ -54,7 +54,8 @@ void stop_note_pad(struct Launchpad *lp, u8 pad_aindex) {
 
 void play_note_step(struct Launchpad *lp, u8 track, u8 note, u8 velocity) {
     if (!lp->tracks[track].is_muted) {
-        hal_send_midi(USBSTANDALONE, NOTEON | track, note, velocity);
+        hal_send_midi(USBMIDI, NOTEON | track, note, velocity);
+        hal_send_midi(DINMIDI, NOTEON | track, note, velocity);
 
         lp->playing_step[track].is_playing = true;
         lp->playing_step[track].note = note;
@@ -64,9 +65,40 @@ void play_note_step(struct Launchpad *lp, u8 track, u8 note, u8 velocity) {
 void stop_note_step(struct Launchpad *lp, u8 track) {
     struct PlayingStep *step = &lp->playing_step[track];
     if (step->is_playing) {
-        hal_send_midi(USBSTANDALONE, NOTEOFF | track, step->note, 0);
+        hal_send_midi(USBMIDI, NOTEOFF | track, step->note, 0);
+        hal_send_midi(DINMIDI, NOTEOFF | track, step->note, 0);
 
         step->is_playing = false;
+    }
+}
+
+void transfer_midi_note(struct Launchpad *lp, u8 command, u8 note, u8 value) {
+    hal_send_midi(USBMIDI, command | lp->active_track, note, value);
+    hal_send_midi(DINMIDI, command | lp->active_track, note, value);
+}
+
+void send_ableton_control_pad(struct Launchpad *lp) {
+    if (lp->ableton_control_pad_mode) {
+        struct Track *track = &lp->tracks[lp->active_track];
+        if (track->is_drums && lp->last_note.velocity > 0) {
+            hal_send_midi(USBSTANDALONE, NOTEON | 15, lp->active_track, lp->last_note.note);
+            return;
+        }
+    }
+
+    hal_send_midi(USBSTANDALONE, NOTEOFF | 15, 0, 0);
+}
+
+void switch_ableton_control_pad(struct Launchpad *lp, bool force_off) {
+    bool prev_state = lp->ableton_control_pad_mode;
+    if (force_off) {
+        lp->ableton_control_pad_mode = false;
+    } else {
+        lp->ableton_control_pad_mode = !lp->ableton_control_pad_mode;
+    }
+
+    if (lp->ableton_control_pad_mode != prev_state) {
+        send_ableton_control_pad(lp);
     }
 }
 
@@ -90,6 +122,8 @@ void switch_active_track(struct Launchpad *lp, u8 track_id) {
         lp->display_step_info_request_ms[i] = 0;
     }
 
+    switch_ableton_control_pad(lp, true);
+
     draw_active_track(lp);
 }
 
@@ -100,7 +134,7 @@ void handle_active_track(struct Launchpad *lp, u8 pad_index) {
             lp->restore_active_track_request_ms = lp->time;
         }
 
-        switch_active_track(lp,  pad_index - 1);
+        switch_active_track(lp, pad_index - 1);
     }
 }
 
@@ -149,8 +183,6 @@ void handle_clock(struct Launchpad *lp) {
                 draw_active_step(lp);
             }
         }
-
-        track->next_step_clock = track->current_step_clock + clock_divider;
     }
 }
 
@@ -196,9 +228,11 @@ void handle_note(struct Launchpad *lp, u8 pad_index, u8 value) {
         }
 
         if (note > 0) {
-            play_note_pad(lp, pad_index, note, value);
             lp->last_note.note = note;
             lp->last_note.velocity = value;
+
+            play_note_pad(lp, pad_index, note, value);
+            send_ableton_control_pad(lp);
 
             if (lp->display_step_info >= 0) {
                 for (u8 i = 0; i < 32; i++) {
@@ -208,21 +242,8 @@ void handle_note(struct Launchpad *lp, u8 pad_index, u8 value) {
                     }
                 }
             } else if (lp->record_mode) {
-                if (track->next_step_clock > track->current_step_clock) {
-                    u32 cur_clock = lp->raw_clock - 3 * track->current_step_clock;
-                    u32 midstep = 3 * (track->next_step_clock - track->current_step_clock) / 2;
-
-                    if (cur_clock <= midstep) {
-                        track->steps[track->active_pattern][track->current_step].note = note;
-                        track->steps[track->active_pattern][track->current_step].velocity = value;
-                    } else {
-                        u8 track_len = 1 << (track->length[track->active_pattern] + 2);
-                        u8 next_step = (track->current_step + 1) % track_len;
-                        track->steps[track->active_pattern][next_step].note = note;
-                        track->steps[track->active_pattern][next_step].velocity = value;
-                    }
-                }
-
+                track->steps[track->active_pattern][track->current_step].note = note;
+                track->steps[track->active_pattern][track->current_step].velocity = value;
             }
         }
 
@@ -365,7 +386,8 @@ void handle_control(struct Launchpad *lp, u8 pad_index) {
             track->length[track->active_pattern]++;
             draw_active_track(lp);
         } else if (id == 2) {
-            lp->preview_off_mode = true;
+            switch_ableton_control_pad(lp, false);
+            draw_control(lp);
         } else if (id == 1) {
             lp->record_mode = track;
         }
@@ -377,8 +399,6 @@ void handle_control_unpress(struct Launchpad *lp, u8 pad_index) {
         u8 id = pad_index / 10;
         if (id == 4) {
             lp->clone_pattern_mode = false;
-        } else if (id == 2) {
-            lp->preview_off_mode = false;
         } else if (id == 1) {
             lp->record_mode = false;
         }

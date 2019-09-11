@@ -27,7 +27,6 @@ struct Track {
     u8 octave;
 
     u32 current_step_clock;
-    u32 next_step_clock;
 
     u8 active_pattern;
     u8 clock_divider[4];
@@ -53,7 +52,7 @@ struct Launchpad {
 
     bool clone_pattern_mode;
     bool clear_pattern_mode;
-    bool preview_off_mode;
+    bool ableton_control_pad_mode;
     bool record_mode;
 
     u8 active_track;
