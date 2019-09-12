@@ -56,10 +56,12 @@ struct Launchpad {
     bool setup_mode;
     bool ableton_control_pad_mode;
     bool record_mode;
+    bool session_mode;
 
     u8 active_track;
     s8 display_step_info;
     u32 display_step_info_request_ms[32];
+    u32 activate_session_mode_request_ms;
 
     u8 prev_active_track;
     u8 active_track_buttons_pressed;

@@ -100,6 +100,10 @@ void draw_notepads(struct Launchpad *lp) {
 }
 
 void draw_steps(struct Launchpad *lp) {
+    if (lp->session_mode) {
+        return;
+    }
+
     struct Track *track = &lp->tracks[lp->active_track];
     for (u8 i = 0; i < 32; i++) {
         struct Step *step = &track->steps[track->active_pattern][i];
@@ -117,6 +121,26 @@ void draw_steps(struct Launchpad *lp) {
             if (step->velocity > 0) {
                 u16 velocity = step->velocity;
                 draw_pad(pad_index, fade(track->color, (velocity * 100) / 127));
+            } else {
+                draw_pad(pad_index, NO_COLOR);
+            }
+        }
+    }
+}
+
+void draw_session(struct Launchpad *lp) {
+    if (!lp->session_mode) {
+        return;
+    }
+
+    for (u8 i = 0; i < 8; i++) {
+        for (u8 j = 0; j < 4; j++) {
+            u8 pad_index = (8 - j) * 10 + i + 1;
+
+            if (lp->tracks[i].active_pattern == j) {
+                draw_pad(pad_index, COLOR_GREEN);
+            } else if (lp->tracks[i].pattern_has_data[j]) {
+                draw_pad(pad_index, lp->tracks[i].color);
             } else {
                 draw_pad(pad_index, NO_COLOR);
             }
@@ -230,6 +254,7 @@ void draw_active_track(struct Launchpad *lp) {
     draw_track_selector(lp);
     draw_clock_divider(lp);
     draw_steps(lp);
+    draw_session(lp);
     draw_length_selector(lp);
     draw_control(lp);
     draw_velocity(lp);

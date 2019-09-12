@@ -312,14 +312,14 @@ void handle_time_tick(struct Launchpad *lp) {
 }
 
 void handle_sequencer(struct Launchpad *lp, u8 pad_index) {
-    if (is_sequencer(pad_index)) {
+    if (!lp->session_mode && is_sequencer(pad_index)) {
         u8 step_index = (8 - (pad_index / 10)) * 8 + (pad_index % 10 - 1);
         lp->display_step_info_request_ms[step_index] = lp->time;
     }
 }
 
 void handle_sequencer_unpress(struct Launchpad *lp, u8 pad_index) {
-    if (is_sequencer(pad_index)) {
+    if (!lp->session_mode && is_sequencer(pad_index)) {
         u8 step_index = (8 - (pad_index / 10)) * 8 + (pad_index % 10 - 1);
 
         if (lp->display_step_info == -1) {
@@ -341,6 +341,21 @@ void handle_sequencer_unpress(struct Launchpad *lp, u8 pad_index) {
         lp->display_step_info_request_ms[step_index] = 0;
         mark_current_pattern_active(lp);
         check_step_info(lp);
+    }
+}
+
+void handle_session(struct Launchpad *lp, u8 pad_index) {
+    if (lp->session_mode && is_sequencer(pad_index)) {
+        u8 track = pad_index % 10 - 1;
+        u8 pattern = 8 - pad_index / 10;
+
+        lp->tracks[track].active_pattern = pattern;
+
+        if (track == lp->active_track) {
+            draw_control(lp);
+        }
+
+        draw_session(lp);
     }
 }
 
@@ -566,6 +581,16 @@ void handle_control_unpress(struct Launchpad *lp, u8 pad_index) {
 void handle_setup(struct Launchpad *lp, bool pressed) {
     lp->setup_mode = pressed;
     draw_control(lp);
+
+    if (pressed) {
+        lp->activate_session_mode_request_ms = lp->time;
+    } else {
+        if (500 + lp->activate_session_mode_request_ms >= lp->time) {
+            lp->session_mode = !lp->session_mode;
+            draw_steps(lp);
+            draw_session(lp);
+        }
+    }
 }
 
 #endif
