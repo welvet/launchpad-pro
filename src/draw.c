@@ -178,24 +178,47 @@ void draw_control(struct Launchpad *lp) {
     struct Track *track = &lp->tracks[lp->active_track];
     for (u8 i = 0; i < 4; i++) {
         if (track->active_pattern == i) {
-            draw_pad((8 - i) * 10, track->color);
+            if (lp->setup_mode) {
+                draw_pad((8 - i) * 10, COLOR_RED);
+            } else {
+                draw_pad((8 - i) * 10, COLOR_GREEN);
+            }
         } else {
-            draw_pad((8 - i) * 10, NO_COLOR);
+            if (track->pattern_has_data[i]) {
+                if (lp->setup_mode) {
+                    draw_pad((8 - i) * 10, fade(COLOR_RED, 30));
+                } else {
+                    draw_pad((8 - i) * 10, fade(track->color, 30));
+                }
+            } else {
+                if (lp->clone_pattern_mode) {
+                    draw_pad((8 - i) * 10, fade(COLOR_YELLOW, 30));
+                } else {
+                    draw_pad((8 - i) * 10, NO_COLOR);
+                }
+            }
         }
     }
 
-    draw_pad(40, COLOR_YELLOW); //clone
-    if (track->length[track->active_pattern] <= 2) {
-        draw_pad(30, COLOR_GREEN);  //dup
-    } else {
-        draw_pad(30, NO_COLOR);  //dup
-    }
-    if (lp->ableton_control_pad_mode) {
-        draw_pad(20, COLOR_CYAN);
-    } else {
+    if (lp->setup_mode) {
+        draw_pad(40, COLOR_RED);
+        draw_pad(30, COLOR_RED);
         draw_pad(20, NO_COLOR);
+        draw_pad(10, COLOR_GREEN);
+    } else {
+        draw_pad(40, COLOR_YELLOW); //clone
+        if (track->length[track->active_pattern] <= 2) {
+            draw_pad(30, COLOR_GREEN);  //dup
+        } else {
+            draw_pad(30, NO_COLOR);  //dup
+        }
+        if (lp->ableton_control_pad_mode) {
+            draw_pad(20, COLOR_CYAN);
+        } else {
+            draw_pad(20, NO_COLOR);
+        }
+        draw_pad(10, COLOR_RED);    //rec
     }
-    draw_pad(10, COLOR_RED);    //rec
 }
 
 void draw_active_step(struct Launchpad *lp) {

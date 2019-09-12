@@ -77,6 +77,22 @@ void transfer_midi_note(struct Launchpad *lp, u8 command, u8 note, u8 value) {
     hal_send_midi(DINMIDI, command | lp->active_track, note, value);
 }
 
+void mark_current_pattern_active(struct Launchpad *lp) {
+    struct Track *track = &lp->tracks[lp->active_track];
+    u8 track_len = 1 << (track->length[track->active_pattern] + 2);
+
+    bool has_data = false;
+    for (u8 i = 0; i < track_len; i++) {
+        struct Step *step = &track->steps[track->active_pattern][i];
+        if (step->note > 0 && step->velocity > 0) {
+            has_data = true;
+            break;
+        }
+    }
+
+    track->pattern_has_data[track->active_pattern] = has_data;
+}
+
 void send_ableton_control_pad(struct Launchpad *lp) {
     if (lp->ableton_control_pad_mode) {
         struct Track *track = &lp->tracks[lp->active_track];
@@ -158,6 +174,8 @@ void handle_length(struct Launchpad *lp, u8 pad_index) {
     if (pad_index >= 45 && pad_index < 49) {
         struct Track *track = &lp->tracks[lp->active_track];
         track->length[track->active_pattern] = (pad_index - 45);
+        mark_current_pattern_active(lp);
+
         draw_active_track(lp);
     }
 }
@@ -245,6 +263,8 @@ void handle_note(struct Launchpad *lp, u8 pad_index, u8 value) {
                 track->steps[track->active_pattern][track->current_step].note = note;
                 track->steps[track->active_pattern][track->current_step].velocity = value;
             }
+
+            mark_current_pattern_active(lp);
         }
 
         draw_notepads(lp);
@@ -319,6 +339,7 @@ void handle_sequencer_unpress(struct Launchpad *lp, u8 pad_index) {
         }
 
         lp->display_step_info_request_ms[step_index] = 0;
+        mark_current_pattern_active(lp);
         check_step_info(lp);
     }
 }
@@ -346,6 +367,114 @@ void handle_stop(struct Launchpad *lp) {
     }
 }
 
+void clear_track(struct Launchpad *lp, u8 track) {
+    for (u8 i = 0; i < 4; i++) {
+        for (u8 j = 0; j < 32; j++) {
+            struct Step *step = &lp->tracks[track].steps[i][j];
+            step->note = 0;
+            step->velocity = 0;
+        }
+
+        lp->tracks[track].length[i] = 2;
+        lp->tracks[track].clock_divider[i] = 2;
+        lp->tracks[track].pattern_has_data[i] = 0;
+    }
+}
+
+void store_sequencer(struct Launchpad *lp) {
+    u8 data[1024] = {0};
+    u16 ptr = 0;
+
+    for (u8 i = 0; i < 8; i++) {
+        struct Track *track = &lp->tracks[i];
+        for (u8 j = 0; j < 4; j++) {
+            data[ptr++] = (track->length[j] << 4) + (track->clock_divider[j]);
+        }
+    }
+
+    u8 step_pos = 0;
+    for (u8 i = 0; i < 8; i++) {
+        struct Track *track = &lp->tracks[i];
+        for (u8 j = 0; j < 4; j++) {
+            for (u8 k = 0; k < 32; k++) {
+                struct Step *step = &track->steps[j][k];
+
+                if (step->note > 0 && step->velocity > 0) {
+                    if (ptr < 1024) {
+                        data[ptr++] = ((step_pos) << 4) + (step->velocity / 8);
+                        data[ptr++] = step->note;
+                    }
+
+                    step_pos = 0;
+                } else if (step_pos++ == 15) {
+                    if (ptr < 1024) {
+                        data[ptr++] = 0;
+                    }
+
+                    step_pos = 0;
+                }
+            }
+        }
+    }
+
+    hal_write_flash(0, data, 1024);
+}
+
+void load_sequencer(struct Launchpad *lp) {
+    u8 data[1024] = {0};
+    u16 ptr = 0;
+
+    hal_read_flash(0, data, 1024);
+
+    if (data[0] == 255) {
+        return;
+    }
+
+    for (u8 i = 0; i < 8; i++) {
+        struct Track *track = &lp->tracks[i];
+        for (u8 j = 0; j < 4; j++) {
+            u8 d = data[ptr++];
+            track->length[j] = d >> 4;
+            track->clock_divider[j] = d & 0xF;
+        }
+    }
+
+    u16 total_steps = 8 * 4 * 32;
+    u16 cur_step = 0;
+
+    while (cur_step < total_steps) {
+        if (ptr >= 1023) {
+            break;
+        }
+
+        u8 d = data[ptr++];
+
+        if (d == 0) {
+            cur_step += 16;
+        } else {
+            u16 target_step = d >> 4;
+
+            if (cur_step > 0) {
+                target_step += cur_step + 1;
+            }
+
+            u8 track = target_step / (32 * 4);
+            u8 pattern = (target_step % (32 * 4)) / 32;
+            u8 step_in_pattern = (target_step % (32 * 4)) % 32;
+
+            struct Step *step = &lp->tracks[track].steps[pattern][step_in_pattern];
+            step->velocity = 8 * (d & 0xF);
+            step->note = data[ptr++];
+
+            lp->tracks[track].pattern_has_data[pattern] = true;
+
+            cur_step = target_step;
+        }
+    }
+
+    draw_active_track(lp);
+}
+
 void handle_control(struct Launchpad *lp, u8 pad_index) {
     if (is_in_col(pad_index, 0)) {
         u8 id = pad_index / 10;
@@ -357,14 +486,18 @@ void handle_control(struct Launchpad *lp, u8 pad_index) {
             if (lp->clone_pattern_mode) {
                 track->clock_divider[target_pattern] = track->clock_divider[track->active_pattern];
                 track->length[target_pattern] = track->length[track->active_pattern];
+                track->pattern_has_data[target_pattern] = track->pattern_has_data[track->active_pattern];
+
                 for (u8 i = 0; i < 32; i++) {
                     track->steps[target_pattern][i].note = track->steps[track->active_pattern][i].note;
                     track->steps[target_pattern][i].velocity = track->steps[track->active_pattern][i].velocity;
                 }
             }
-            if (lp->clear_pattern_mode) {
+            if (lp->setup_mode) {
                 track->clock_divider[target_pattern] = 1;
                 track->length[target_pattern] = 2;
+                track->pattern_has_data[target_pattern] = false;
+
                 for (u8 i = 0; i < 32; i++) {
                     track->steps[target_pattern][i].note = 0;
                     track->steps[target_pattern][i].velocity = 0;
@@ -374,31 +507,56 @@ void handle_control(struct Launchpad *lp, u8 pad_index) {
             track->active_pattern = target_pattern;
             draw_active_track(lp);
         } else if (id == 4) {
-            lp->clone_pattern_mode = true;
-        } else if (id == 3 && track->length[track->active_pattern] <= 2) {
-            u8 curr_len = 1 << (track->length[track->active_pattern] + 2);
-            for (u8 i = 0; i < curr_len; i++) {
-                track->steps[track->active_pattern][curr_len + i].note = track->steps[track->active_pattern][i].note;
-                track->steps[track->active_pattern][curr_len + i].velocity =
-                        track->steps[track->active_pattern][i].velocity;
+            if (lp->setup_mode) {
+                clear_track(lp, lp->active_track);
+                draw_active_track(lp);
+            } else {
+                lp->clone_pattern_mode = true;
+                draw_control(lp);
             }
+        } else if (id == 3) {
+            if (lp->setup_mode) {
+                for (u8 i = 0; i < 8; i++) {
+                    clear_track(lp, i);
+                }
+                draw_active_track(lp);
+            } else {
+                if (track->length[track->active_pattern] <= 2) {
+                    u8 curr_len = 1 << (track->length[track->active_pattern] + 2);
+                    for (u8 i = 0; i < curr_len; i++) {
+                        track->steps[track->active_pattern][curr_len +
+                                                            i].note = track->steps[track->active_pattern][i].note;
+                        track->steps[track->active_pattern][curr_len + i].velocity =
+                                track->steps[track->active_pattern][i].velocity;
+                    }
 
-            track->length[track->active_pattern]++;
-            draw_active_track(lp);
+                    track->length[track->active_pattern]++;
+                    draw_active_track(lp);
+                }
+            }
         } else if (id == 2) {
-            switch_ableton_control_pad(lp, false);
-            draw_control(lp);
+            if (lp->setup_mode) {
+
+            } else {
+                switch_ableton_control_pad(lp, false);
+                draw_control(lp);
+            }
         } else if (id == 1) {
-            lp->record_mode = track;
+            if (lp->setup_mode) {
+                store_sequencer(lp);
+            } else {
+                lp->record_mode = true;
+            }
         }
     }
 }
 
 void handle_control_unpress(struct Launchpad *lp, u8 pad_index) {
-    if (is_in_col(pad_index, 0)) {
+    if (!lp->setup_mode && is_in_col(pad_index, 0)) {
         u8 id = pad_index / 10;
         if (id == 4) {
             lp->clone_pattern_mode = false;
+            draw_control(lp);
         } else if (id == 1) {
             lp->record_mode = false;
         }
@@ -406,7 +564,8 @@ void handle_control_unpress(struct Launchpad *lp, u8 pad_index) {
 }
 
 void handle_setup(struct Launchpad *lp, bool pressed) {
-    lp->clear_pattern_mode = pressed;
+    lp->setup_mode = pressed;
+    draw_control(lp);
 }
 
 #endif

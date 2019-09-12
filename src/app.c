@@ -24,6 +24,8 @@ void app_init(const u16 *adc_raw) {
     lp.tracks[6] = melody_track(61, 62, 30);
     lp.tracks[7] = melody_track(49, 13, 27);
 
+    load_sequencer(&lp);
+
     draw_all(&lp);
 }
 
