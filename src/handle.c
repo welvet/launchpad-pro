@@ -391,7 +391,7 @@ void clear_track(struct Launchpad *lp, u8 track) {
         }
 
         lp->tracks[track].length[i] = 2;
-        lp->tracks[track].clock_divider[i] = 2;
+        lp->tracks[track].clock_divider[i] = 1;
         lp->tracks[track].pattern_has_data[i] = 0;
     }
 }
