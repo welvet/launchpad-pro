@@ -3,6 +3,7 @@
 #include "draw.c"
 #include "handle.c"
 #include <stdbool.h>
+#include <stdlib.h>
 
 struct Launchpad lp;
 
@@ -24,16 +25,24 @@ void app_init(const u16 *adc_raw) {
     lp.tracks[6] = melody_track(61, 62, 30);
     lp.tracks[7] = melody_track(49, 13, 27);
 
-    load_sequencer(&lp);
+    for (u8 i = 0; i < 8; i++) {
+        clear_track(&lp, i);
+    }
 
     draw_all(&lp);
 }
 
 void app_surface_event(u8 type, u8 index, u8 value) {
+    if (!lp.has_srand) {
+        srand(lp.time);
+        lp.has_srand = true;
+    }
+
     if (type == TYPEPAD && value > 0) {
         handle_track_mute(&lp, index);
         handle_active_track(&lp, index);
         handle_clock_divider(&lp, index);
+        handle_step_components(&lp, index);
         handle_length(&lp, index);
         handle_note(&lp, index, value);
         handle_velocity(&lp, index);

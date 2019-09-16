@@ -48,6 +48,23 @@ void draw_clock_divider(struct Launchpad *lp) {
     }
 }
 
+void draw_step_components(struct Launchpad *lp) {
+    if (lp->display_step_info < 0) {
+        return;
+    }
+
+    struct Track *track = &lp->tracks[lp->active_track];
+    struct StepComponent *component = &track->step_components[track->active_pattern][lp->display_step_info];
+    draw_pad(89, component->random_trigger ? COLOR_GREEN : NO_COLOR);
+    draw_pad(79, component->random_note ? COLOR_GREEN : NO_COLOR);
+    draw_pad(69, component->random_velocity ? COLOR_GREEN : NO_COLOR);
+    draw_pad(59, component->random_jump_step ? COLOR_GREEN : NO_COLOR);
+    draw_pad(49, NO_COLOR);
+    draw_pad(39, NO_COLOR);
+    draw_pad(29, NO_COLOR);
+    draw_pad(19, NO_COLOR);
+}
+
 void draw_notepads(struct Launchpad *lp) {
     struct Track *track = &lp->tracks[lp->active_track];
     struct Step *step = &track->steps[track->active_pattern][track->current_step];
@@ -228,7 +245,7 @@ void draw_control(struct Launchpad *lp) {
         draw_pad(40, COLOR_RED);
         draw_pad(30, COLOR_RED);
         draw_pad(20, NO_COLOR);
-        draw_pad(10, COLOR_GREEN);
+        draw_pad(10, NO_COLOR);
     } else {
         draw_pad(40, COLOR_YELLOW); //clone
         if (track->length[track->active_pattern] <= 2) {
@@ -241,6 +258,7 @@ void draw_control(struct Launchpad *lp) {
         } else {
             draw_pad(20, NO_COLOR);
         }
+
         draw_pad(10, COLOR_RED);    //rec
     }
 }
@@ -253,6 +271,7 @@ void draw_active_step(struct Launchpad *lp) {
 void draw_active_track(struct Launchpad *lp) {
     draw_track_selector(lp);
     draw_clock_divider(lp);
+    draw_step_components(lp);
     draw_steps(lp);
     draw_session(lp);
     draw_length_selector(lp);

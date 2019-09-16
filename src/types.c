@@ -17,6 +17,13 @@ struct Step {
     u8 velocity;
 };
 
+struct StepComponent {
+    bool random_trigger;
+    bool random_note;
+    bool random_velocity;
+    bool random_jump_step;
+};
+
 struct Track {
     bool is_drums;
     bool is_muted;
@@ -24,6 +31,7 @@ struct Track {
     struct Color color;
 
     u8 current_step;
+    u8 step_offset;
     u8 octave;
 
     u32 current_step_clock;
@@ -33,6 +41,7 @@ struct Track {
     u8 length[4];
 
     struct Step steps[4][32];
+    struct StepComponent step_components[4][32];
     bool pattern_has_data[4];
 };
 
@@ -51,6 +60,7 @@ struct Launchpad {
     u32 time;
     u32 clock;
     u32 raw_clock;
+    bool has_srand;
 
     bool clone_pattern_mode;
     bool setup_mode;
