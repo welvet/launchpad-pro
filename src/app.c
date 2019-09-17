@@ -94,7 +94,6 @@ void app_midi_event(u8 port, u8 status, u8 d1, u8 d2) {
                 break;
         }
     }
-
 }
 
 void app_sysex_event(u8 port, u8 *data, u16 count) {

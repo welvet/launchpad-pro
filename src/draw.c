@@ -33,6 +33,10 @@ void draw_mutes(struct Launchpad *lp) {
 }
 
 void draw_clock_divider(struct Launchpad *lp) {
+    if (lp->display_step_info >= 0) {
+        return;
+    }
+
     struct Track *track = &lp->tracks[lp->active_track];
     for (u8 i = 0; i < 8; i++) {
         u8 pad_index = (8 - i) * 10 + 9;

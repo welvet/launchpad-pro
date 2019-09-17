@@ -250,7 +250,10 @@ void handle_clock(struct Launchpad *lp) {
         if (lp->clock % clock_divider == 0) {
             u8 track_len = 1 << (track->length[track->active_pattern] + 2);
             track->current_step = lp->clock / clock_divider % track_len;
-            track->current_step = abs((track->step_offset + track->current_step) % track_len);
+            track->current_step = (track->step_offset + track->current_step) % track_len;
+            if (track->current_step < 0) {
+                track->current_step = -1 * track->current_step;
+            }
 
             stop_note_step(lp, i);
             struct Step *step = &track->steps[track->active_pattern][track->current_step];
