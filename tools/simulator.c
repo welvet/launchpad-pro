@@ -31,7 +31,8 @@
  *****************************************************************************/
 
 #include <stdio.h>
-#include "app.h"
+#include "app.c"
+#include "types.c"
 
 // ____________________________________________________________________________
 //
@@ -95,6 +96,9 @@ static void sim_app_timer_event() {
 // ____________________________________________________________________________
 
 int main(int argc, char *argv[]) {
+    struct Launchpad lp;
+    printf("Main structure size %lu \n", sizeof(lp));
+
     // let's just call a few things to give the app a very brief workout.
     sim_app_init();
 

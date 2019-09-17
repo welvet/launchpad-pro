@@ -18,15 +18,15 @@ struct Step {
 };
 
 struct StepComponent {
-    bool random_trigger;
-    bool random_note;
-    bool random_velocity;
-    bool random_jump_step;
+    bool random_trigger :1;
+    bool random_note :1;
+    bool random_velocity :1;
+    bool random_jump_step :1;
 
-    bool random_repeat_step;
-    bool random_placeholder1;
-    bool random_placeholder2;
-    bool random_skip_component;
+    bool random_repeat_step :1;
+    bool random_placeholder1 :1;
+    bool random_placeholder2 :1;
+    bool random_skip_component :1;
 };
 
 struct Track {
