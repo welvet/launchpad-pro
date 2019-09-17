@@ -59,10 +59,10 @@ void draw_step_components(struct Launchpad *lp) {
     draw_pad(79, component->random_note ? COLOR_GREEN : NO_COLOR);
     draw_pad(69, component->random_velocity ? COLOR_GREEN : NO_COLOR);
     draw_pad(59, component->random_jump_step ? COLOR_GREEN : NO_COLOR);
-    draw_pad(49, NO_COLOR);
-    draw_pad(39, NO_COLOR);
-    draw_pad(29, NO_COLOR);
-    draw_pad(19, NO_COLOR);
+    draw_pad(49, component->random_repeat_step ? COLOR_GREEN : NO_COLOR);
+    draw_pad(39, component->random_placeholder1 ? COLOR_GREEN : NO_COLOR);
+    draw_pad(29, component->random_placeholder2 ? COLOR_GREEN : NO_COLOR);
+    draw_pad(19, component->random_skip_component ? COLOR_GREEN : NO_COLOR);
 }
 
 void draw_notepads(struct Launchpad *lp) {

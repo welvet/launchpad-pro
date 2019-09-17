@@ -22,6 +22,11 @@ struct StepComponent {
     bool random_note;
     bool random_velocity;
     bool random_jump_step;
+
+    bool random_repeat_step;
+    bool random_placeholder1;
+    bool random_placeholder2;
+    bool random_skip_component;
 };
 
 struct Track {
@@ -31,7 +36,7 @@ struct Track {
     struct Color color;
 
     u8 current_step;
-    u8 step_offset;
+    s32 step_offset;
     u8 octave;
 
     u32 current_step_clock;

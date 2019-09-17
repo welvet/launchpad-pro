@@ -205,6 +205,14 @@ void handle_step_components(struct Launchpad *lp, u8 pad_index) {
                         component->random_velocity = !component->random_velocity;
                     } else if (id == 5) {
                         component->random_jump_step = !component->random_jump_step;
+                    } else if (id == 4) {
+                        component->random_repeat_step = !component->random_repeat_step;
+                    } else if (id == 3) {
+                        component->random_placeholder1 = !component->random_placeholder1;
+                    } else if (id == 2) {
+                        component->random_placeholder2 = !component->random_placeholder2;
+                    } else if (id == 1) {
+                        component->random_skip_component = !component->random_skip_component;
                     }
                 }
             }
@@ -242,22 +250,27 @@ void handle_clock(struct Launchpad *lp) {
         if (lp->clock % clock_divider == 0) {
             u8 track_len = 1 << (track->length[track->active_pattern] + 2);
             track->current_step = lp->clock / clock_divider % track_len;
-            track->current_step = (track->current_step + track->step_offset) % track_len;
+            track->current_step = abs((track->step_offset + track->current_step) % track_len);
 
             stop_note_step(lp, i);
             struct Step *step = &track->steps[track->active_pattern][track->current_step];
             struct StepComponent *component = &track->step_components[track->active_pattern][track->current_step];
 
+            bool apply_component = true;
+            if (component->random_skip_component) {
+                apply_component = rand() & 1;
+            }
+
             u8 note = step->note;
             u8 velocity = step->velocity;
             if (step->velocity > 0) {
-                if (component->random_note) {
+                if (apply_component && component->random_note) {
                     note = note + (randint(7)) - 3;
                 }
-                if (component->random_velocity) {
-                    velocity = velocity + (randint(60)) - 30;
+                if (apply_component && component->random_velocity) {
+                    velocity = velocity + (randint(30)) - 15;
                 }
-                if (component->random_trigger) {
+                if (apply_component && component->random_trigger) {
                     if (rand() & 1) {
                         velocity = 0;
                     }
@@ -268,8 +281,18 @@ void handle_clock(struct Launchpad *lp) {
                 }
             }
 
-            if (component->random_jump_step) {
-                track->step_offset = randint(track->current_step);
+            if (apply_component && component->random_jump_step) {
+                if (rand() & 1) {
+                    track->step_offset += randint(track->current_step);
+                } else {
+                    track->step_offset -= randint(track->current_step);
+                }
+            }
+
+            if (apply_component && component->random_repeat_step) {
+                if (rand() & 1) {
+                    track->step_offset--;
+                }
             }
 
             track->current_step_clock = lp->clock;
@@ -477,6 +500,10 @@ void clear_track(struct Launchpad *lp, u8 track) {
             component->random_note = false;
             component->random_velocity = false;
             component->random_jump_step = false;
+            component->random_repeat_step = false;
+            component->random_placeholder1 = false;
+            component->random_placeholder2 = false;
+            component->random_skip_component = false;
         }
 
         lp->tracks[track].length[i] = 2;
@@ -509,6 +536,10 @@ void handle_control(struct Launchpad *lp, u8 pad_index) {
                     target_component->random_note = active_component->random_note;
                     target_component->random_velocity = active_component->random_velocity;
                     target_component->random_jump_step = active_component->random_jump_step;
+                    target_component->random_repeat_step = active_component->random_repeat_step;
+                    target_component->random_placeholder1 = active_component->random_placeholder1;
+                    target_component->random_placeholder2 = active_component->random_placeholder2;
+                    target_component->random_skip_component = active_component->random_skip_component;
                 }
             }
             if (lp->setup_mode) {
@@ -525,6 +556,10 @@ void handle_control(struct Launchpad *lp, u8 pad_index) {
                     component->random_note = false;
                     component->random_velocity = false;
                     component->random_jump_step = false;
+                    component->random_repeat_step = false;
+                    component->random_placeholder1 = false;
+                    component->random_placeholder2 = false;
+                    component->random_skip_component = false;
                 }
             }
 
@@ -550,7 +585,7 @@ void handle_control(struct Launchpad *lp, u8 pad_index) {
                 if (track->length[track->active_pattern] <= 2) {
                     u8 curr_len = 1 << (track->length[track->active_pattern] + 2);
                     for (u8 i = 0; i < curr_len; i++) {
-                        track->steps[track->active_pattern][curr_len +i].note
+                        track->steps[track->active_pattern][curr_len + i].note
                                 = track->steps[track->active_pattern][i].note;
                         track->steps[track->active_pattern][curr_len + i].velocity =
                                 track->steps[track->active_pattern][i].velocity;
